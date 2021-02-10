@@ -21,7 +21,7 @@
  return EXIT_FAILURE;}} while(0)
 
 //Generation of random numbers using cuda host API
-int cudaHostPseudoRandom(size_t iterations)
+int cudaHostRandom(size_t iterations)
 {
  curandGenerator_t gen;
  unsigned int *devData, *hostData;
@@ -38,10 +38,10 @@ CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen,CURAND_ORDERING_PSEUDO_DEFAUL
  /* Copy device memory to host */
  CUDA_CALL(cudaMemcpy(hostData, devData, iterations * sizeof(int),cudaMemcpyDeviceToHost));
  /* Show result */
- for(int i = 0; i < iterations; i++) {
+ /*for(int i = 0; i < iterations; i++) {
  printf("%d", hostData[i]);
  }
- printf("\n");
+ printf("\n");*/
  /* Clean */
  CURAND_CALL(curandDestroyGenerator(gen));
  CUDA_CALL(cudaFree(devData));
@@ -66,10 +66,10 @@ CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen,CURAND_ORDERING_PSEUDO_DEFAUL
  /* Copy device memory to host */
  CUDA_CALL(cudaMemcpy(hostData, devData, iterations * sizeof(float),cudaMemcpyDeviceToHost));
  /* Show result */
- for(int i = 0; i < iterations; i++) {
+ /*for(int i = 0; i < iterations; i++) {
  printf("%1.4f ", hostData[i]);
  }
- printf("\n");
+ printf("\n");*/
  /* Clean */
  CURAND_CALL(curandDestroyGenerator(gen));
  CUDA_CALL(cudaFree(devData));
@@ -81,31 +81,91 @@ CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen,CURAND_ORDERING_PSEUDO_DEFAUL
 int main()
 {
   //Variables declaration
-  size_t iterations = 100;
+  size_t iterations = 600000;
   int v1[iterations];
+  
+  cudaEvent_t start;
+  cudaEvent_t stop;
+  checkCudaErrors(cudaEventCreate(&start));
+  checkCudaErrors(cudaEventCreate(&stop));
+  checkCudaErrors(cudaEventRecord(start, NULL));
+
+
   double normalized[iterations];
   //Normal distribution
   std::random_device mch;
   //Seeding
   std::default_random_engine generator(mch()); 
-//Parameters are: Distribution mean, Standard deviation
+  //Parameters are: Distribution mean, Standard deviation
   std::normal_distribution<double> distribution(0.0, 1.0); 
   for(int i=0; i<iterations; i++)
   {
     normalized[i] = distribution(generator);
-    printf("normal_distribution (0.0,1.0): %f\n", normalized[i]);
+    //printf("normal_distribution (0.0,1.0): %f\n", normalized[i]);
   }
+checkCudaErrors(cudaEventRecord(stop, NULL));
+checkCudaErrors(cudaEventSynchronize(stop));
+
+float msecTotal = 0.0f;
+checkCudaErrors(cudaEventElapsedTime(&msecTotal, start, stop));
+double gigaFlops = (iterations * 1.0e-9f) / (msecTotal / 1000.0f);
+printf("Basic normal processing time = %.3fms, \n Perf = %.3f Gflops\n", msecTotal, gigaFlops);
+
 
 //Basic random distribution
+checkCudaErrors(cudaEventCreate(&start));
+checkCudaErrors(cudaEventCreate(&stop));
+checkCudaErrors(cudaEventRecord(start, NULL));
+
   //seeding
   srand((unsigned int)time(NULL)); 
   for (int i=0; i<iterations; i++)
   {
     //Just a basic random int 
     v1[i] = rand(); 
-    printf("Basic random number: %d\n", v1 [i]);
+    //printf("Basic random number: %d\n", v1 [i]);
   }
- cudaHostPseudoRandom(iterations); 
- curandHostNormal(iterations);
- return EXIT_SUCCESS;
+checkCudaErrors(cudaEventRecord(stop, NULL));
+checkCudaErrors(cudaEventSynchronize(stop));
+
+msecTotal = 0.0f;
+checkCudaErrors(cudaEventElapsedTime(&msecTotal, start, stop));
+gigaFlops = (iterations * 1.0e-9f) / (msecTotal / 1000.0f);
+printf("Basic random processing time = %.3fms, \n Perf = %.3f Gflops\n", msecTotal, gigaFlops);
+
+
+//cuda normal distribution on host
+checkCudaErrors(cudaEventCreate(&start));
+checkCudaErrors(cudaEventCreate(&stop));
+checkCudaErrors(cudaEventRecord(start, NULL));
+
+curandHostNormal(iterations);
+
+
+checkCudaErrors(cudaEventRecord(stop, NULL));
+checkCudaErrors(cudaEventSynchronize(stop));
+
+msecTotal = 0.0f;
+checkCudaErrors(cudaEventElapsedTime(&msecTotal, start, stop));
+gigaFlops = (iterations * 1.0e-9f) / (msecTotal / 1000.0f);
+printf("Cuda host normal time = %.3fms, \n Perf = %.3f Gflops\n", msecTotal, gigaFlops);
+
+
+//cuda basic random distribution on host
+checkCudaErrors(cudaEventCreate(&start));
+checkCudaErrors(cudaEventCreate(&stop));
+checkCudaErrors(cudaEventRecord(start, NULL));
+
+cudaHostRandom(iterations);
+
+checkCudaErrors(cudaEventRecord(stop, NULL));
+checkCudaErrors(cudaEventSynchronize(stop));
+
+msecTotal = 0.0f;
+checkCudaErrors(cudaEventElapsedTime(&msecTotal, start, stop));
+gigaFlops = (iterations * 1.0e-9f) / (msecTotal / 1000.0f);
+printf("Cuda host random time = %.3fms, \n Perf = %.3f Gflops\n", msecTotal, gigaFlops);
+ 
+
+return EXIT_SUCCESS;
 }
