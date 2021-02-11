@@ -81,8 +81,7 @@ CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen,CURAND_ORDERING_PSEUDO_DEFAUL
 int main()
 {
   //Variables declaration
-  size_t iterations = 600000;
-  int v1[iterations];
+  size_t iterations = 6000000;
   
   cudaEvent_t start;
   cudaEvent_t stop;
@@ -91,7 +90,9 @@ int main()
   checkCudaErrors(cudaEventRecord(start, NULL));
 
 
-  double normalized[iterations];
+  float *normalized;
+  normalized = (float *)calloc(iterations, sizeof(float));
+
   //Normal distribution
   std::random_device mch;
   //Seeding
@@ -103,6 +104,7 @@ int main()
     normalized[i] = distribution(generator);
     //printf("normal_distribution (0.0,1.0): %f\n", normalized[i]);
   }
+free(normalized);
 checkCudaErrors(cudaEventRecord(stop, NULL));
 checkCudaErrors(cudaEventSynchronize(stop));
 
@@ -116,7 +118,8 @@ printf("Basic normal processing time = %.3fms, \n Perf = %.3f Gflops\n", msecTot
 checkCudaErrors(cudaEventCreate(&start));
 checkCudaErrors(cudaEventCreate(&stop));
 checkCudaErrors(cudaEventRecord(start, NULL));
-
+  unsigned int *v1; 
+  v1 = (unsigned int *)calloc(iterations, sizeof(int));
   //seeding
   srand((unsigned int)time(NULL)); 
   for (int i=0; i<iterations; i++)
@@ -125,6 +128,7 @@ checkCudaErrors(cudaEventRecord(start, NULL));
     v1[i] = rand(); 
     //printf("Basic random number: %d\n", v1 [i]);
   }
+free(v1);
 checkCudaErrors(cudaEventRecord(stop, NULL));
 checkCudaErrors(cudaEventSynchronize(stop));
 
